@@ -96,4 +96,5 @@ flowchart LR
 | **Telemetría Completa** | Visualización de prompt tokens, completion tokens y acumulado global. | ✅ Cumplido |
 | **Métricas por Respuesta** | Medición de modelo, tiempo en segundos y tokens/segundo. | ✅ Cumplido |
 | **Persistencia en Cliente** | Restauración automática de mensajes, contadores y modelo tras `F5`. | ✅ Cumplido |
+| **Manejo Resiliente de Errores** | Captura y traduce errores de API (401, 429, 403, 500) en tarjetas legibles sin colgar la app. | ✅ Cumplido |
 | **Seguridad de Credenciales** | Clave resguardada en servidor; `.gitignore` y `.env.example` aplicados. | ✅ Cumplido |
