@@ -1,87 +1,99 @@
-# Plan Inicial y Requerimientos del Proyecto: Chat React-Next (Groq API)
+# Plan Inicial y Especificaciones: Arquitectura de Software Puro (Chat React-Next)
 
-Este documento recopila el conjunto de especificaciones, requisitos funcionales y el plan de arquitectura inicial definidos para la construcción del chat interactivo con **React + Next.js** conectado a la API de **Groq**.
+Este documento define de forma estricta y exclusiva las especificaciones, requerimientos funcionales y la arquitectura de **software puro** para el desarrollo de la aplicación web de chat interactivo con **React + Next.js (App Router)** conectada a la API de **Groq**.
 
 ---
 
-## 1. Requerimientos y Directrices del Usuario
+## 1. Requerimientos Funcionales y Restricciones de Software
 
-### Requisito 1: Separación de Proyectos
-* **Instrucción:** Construir una interfaz de chat con **React + Next.js**, ubicándola en una carpeta independiente y dejando completamente intacto el desarrollo previo en Python.
-* **Ubicaciones:**
-  - Proyecto Python (Consola): [`c:/4-Programacion/4geekAcademy/AIEngineering/chatAPI`](file:///c:/4-Programacion/4geekAcademy/AIEngineering/chatAPI)
-  - Proyecto React-Next (Web): [`c:/4-Programacion/4geekAcademy/AIEngineering/chat-next`](file:///c:/4-Programacion/4geekAcademy/AIEngineering/chat-next)
+### Requisito 1: Desacoplamiento y Entorno Independiente
+* Construcción de una aplicación web completa y moderna en el directorio independiente [`chat-next`](file:///c:/4-Programacion/4geekAcademy/AIEngineering/chat-next), manteniendo la separación total con el prototipo de consola en Python.
 
-### Requisito 2: Uso Indispensable de `fetch` Nativo
-* **Instrucción:** Las llamadas a la API deben realizarse obligatoriamente utilizando la Fetch API estándar de JavaScript.
-* **Restricción:** Queda terminantemente descartado el uso de librerías HTTP externas (como Axios, Superagent) o SDKs intermediarios (como `groq-sdk` o `openai`). El transporte debe ser nativo tanto en el cliente como en el servidor.
+### Requisito 2: Uso Indispensable y Exclusivo de `fetch` Nativo
+* **Restricción estricta:** Todas las llamadas HTTP hacia el backend y hacia la API de inferencia deben implementarse **únicamente con la Fetch API estándar de JavaScript**.
+* Queda terminantemente prohibido el uso de librerías externas de transporte (como Axios o Superagent) o SDKs de terceros (como `groq-sdk` o `openai`).
 
-### Requisito 3: Registro y Acumulación de Tokens (`usage`)
-* **Instrucción:** Cada respuesta de Groq incluye un objeto `usage`. La aplicación debe capturar, registrar y mostrar:
-  1. Tokens de prompt (entrada).
-  2. Tokens de completado (salida).
-  3. Tokens totales acumulados para toda la sesión de uso.
+### Requisito 3: Captura y Telemetría de Tokens (`usage`)
+* Capturar el objeto oficial `usage` emitido por Groq en cada respuesta para calcular, registrar y mostrar:
+  1. **Tokens de Prompt (Entrada):** Consumo del contexto enviado.
+  2. **Tokens de Completado (Salida):** Tokens generados por el modelo.
+  3. **Consumo Acumulado de la Sesión:** Registro global persistente de toda la sesión activa.
 
-### Requisito 4: Métricas de Telemetría por Respuesta
-* **Instrucción:** La interfaz debe presentar al menos una métrica adicional de rendimiento por cada respuesta generada. Opciones válidas:
-  - Nombre del modelo de IA ejecutado.
-  - Tiempo de respuesta / latencia total (en segundos o ms).
-  - Velocidad de inferencia en **tokens por segundo (tok/s)**.
+### Requisito 4: Métricas de Rendimiento por Respuesta
+* Presentar en la interfaz métricas visuales inmediatas asociadas a cada respuesta del asistente:
+  - Nombre del modelo de IA ejecutado (ej. `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`).
+  - Tiempo de respuesta / latencia total en segundos.
+  - Tasa de generación calculada en **tokens por segundo (tok/s)**.
 
-### Requisito 5: Resiliencia y Persistencia de la Sesión
-* **Instrucción:** El historial de la conversación debe sobrevivir a una recarga accidental de página (`F5`) o al cierre de la pestaña. El usuario no debe perder su trabajo ni sus contadores acumulados por acciones involuntarias en el navegador.
+### Requisito 5: Resiliencia y Persistencia de Sesión (`localStorage`)
+* El historial de conversación, las métricas acumuladas y el modelo seleccionado deben persistir en el navegador mediante `localStorage`.
+* El usuario no debe perder su trabajo ante recargas involuntarias (`F5`), cambios de pestaña o cierres accidentales del navegador.
 
-### Requisito 6: Gestión Integral del Estado de la Interfaz
-* **Instrucción:** Disponer de control reactivo del estado de la aplicación:
-  - Estado de generación (`isLoading`) con indicadores visuales.
-  - Posibilidad de cancelar/detener la generación en curso (`AbortController`).
-  - Selector dinámico de modelos de IA.
+### Requisito 6: Gestión Integral del Estado de la Interfaz (UI State)
+* Control reactivo de estados:
+  - Indicador de generación activa con bloqueo preventivo de envíos dobles.
+  - Capacidad de cancelar la solicitud en curso mediante `AbortController`.
+  - Selector dinámico de modelos de inferencia.
   - Copiado rápido de respuestas con confirmación visual.
-  - Vaciado y reinicio limpio de la conversación y métricas.
+  - Rutina de vaciado y reinicio limpio de la conversación y métricas.
 
 ---
 
-## 2. Plan de Arquitectura e Implementación Inicial
+## 2. Arquitectura de Software Puro (Next.js App Router)
 
-### Capa de Infraestructura y Red (Superación del Doble Bloqueo)
-Para habilitar el funcionamiento del software desde Venezuela, el plan contempló resolver dos barreras de red consecutivas:
-1. **Restricción 1 (Nivel DNS - Proveedor Local):** Resolver el envenenamiento/bloqueo de nombres que impedía descargar herramientas de privacidad mediante el cambio a los DNS públicos de Google (`8.8.8.8` y `8.8.4.4`).
-2. **Restricción 2 (Nivel Tránsito Troncal - CANTV y Filtrado Cloudflare):** Evadir el bloqueo de enrutamiento y geo-bloqueo IP (`HTTP 403`) mediante un túnel VPN a nivel de sistema operativo (Windscribe de escritorio con protocolo **WireGuard en el puerto 443** hacia el nodo de **Atlanta, EE. UU.**).
-3. **Seguridad de Secretos:** Proteger la clave de API (`GROQ_API_KEY`) almacenándola exclusivamente en variables de entorno del servidor (`.env.local`), proveyendo una plantilla pública (`.env.example`) y aislándola permanentemente mediante `.gitignore`.
+$$\mathbf{App\ React + Next.js\ (BFF)} \xrightarrow{\quad\text{Streaming con fetch nativo}\quad} \mathbf{M\acute{e}tricas\ (Usage)\ y\ Persistencia\ (LocalStorage)}$$
 
-### Capa de Servidor (Next.js Route Handler)
-* **Archivo:** `app/api/chat/route.js`
-* **Método:** `POST`
-* **Responsabilidades:**
-  - Recibir el historial de mensajes y modelo seleccionado desde el cliente.
-  - Invocar a `https://api.groq.com/openai/v1/chat/completions` con `fetch` nativo habilitando streaming:
-    ```javascript
-    stream: true,
-    stream_options: { include_usage: true }
-    ```
-  - Transformar el flujo Server-Sent Events (SSE) en un flujo NDJSON estructurado con chunks delta y payload final de métricas.
+```mermaid
+flowchart LR
+    subgraph Client["Capa de Cliente (React 18)"]
+        UI["Interfaz de Chat (app/page.jsx)"]
+        LS[("Persistencia LocalStorage")]
+        UI <--> LS
+    end
 
-### Capa de Cliente (React SPA)
+    subgraph Server["Capa de Servidor (Next.js BFF)"]
+        API["Route Handler (app/api/chat/route.js)"]
+        ENV[(".env.local (GROQ_API_KEY)")]
+        ENV -.-> API
+    end
+
+    subgraph Provider["Capa Externa de Inferencia"]
+        GROQ["Groq API (LPU Inference)"]
+    end
+
+    UI -->|"Fetch nativo (POST)"| API
+    API -->|"Fetch nativo (stream: true)"| GROQ
+    GROQ -->|"SSE Chunks"| API
+    API -->|"NDJSON Stream (ReadableStream)"| UI
+```
+
+### A. Capa de Servidor: Backend-for-Frontend (BFF)
+* **Archivo:** `app/api/chat/route.js` (`POST`)
+* **Aislamiento de Seguridad:** La credencial `GROQ_API_KEY` reside exclusivamente en variables de entorno del servidor (`.env.local`) y nunca se expone al cliente. Se provee un archivo `.env.example` como plantilla.
+* **Transformación de Streaming:**
+  - Envía la solicitud con `stream: true` y `stream_options: { include_usage: true }`.
+  - Recibe el flujo Server-Sent Events (SSE) de Groq y lo retransmite al cliente en formato **NDJSON** (*Newline Delimited JSON*) mediante `ReadableStream`.
+  - Emite eventos delta de texto progresivo y finaliza con el payload estructurado de telemetría y `usage`.
+
+### B. Capa de Cliente: React SPA Reactiva
 * **Archivo:** `app/page.jsx`
-* **Framework y Estilos:** Next.js 14 App Router, React 18, Tailwind CSS, Lucide React Icons.
-* **Componentes clave:**
-  - **Cabecera & Dashboard:** Panel de 4 tarjetas para visualizar tokens acumulados de la sesión y selector de modelo.
-  - **Historial de Chat:** Burbujas diferenciadas para usuario y asistente, con barra de telemetría (modelo, latencia, tok/s, desglose de tokens) bajo cada respuesta.
-  - **Persistencia en LocalStorage:** Sincronización automática de `messages`, `sessionUsage` y `selectedModel` bajo control de montaje para evitar discrepancias de hidratación SSR.
-  - **Caja de Entrada:** Textarea elástico con envío mediante `Enter`, multilínea con `Shift + Enter` y botón de abortar respuesta (`AbortController`).
+* **Tecnologías:** Next.js 14, React 18, Tailwind CSS, Lucide React Icons.
+* **Estructura de Componentes:**
+  1. **Header & Dashboard:** Panel de 4 tarjetas para visualizar en tiempo real los tokens acumulados (Total, Prompt, Salida, Mensajes) y selector de modelo.
+  2. **Historial de Conversación:** Renderizado de burbujas con diseño oscuro, soporte multilínea y barra de métricas dedicada bajo cada respuesta del asistente.
+  3. **Persistencia Sincronizada:** Lectura en el montaje (`useEffect`) y sincronización automática ante cambios, blindada contra discrepancias de hidratación SSR mediante la bandera `isLoadedFromStorage`.
+  4. **Caja de Entrada:** Textarea autoajustable con atajos (`Enter` para enviar, `Shift + Enter` para multilínea) y botón de cancelación con `AbortController`.
 
 ---
 
-## 3. Criterios de Aceptación y Validación
+## 3. Criterios de Aceptación de Software
 
-| Criterio | Estado | Verificación |
-| :--- | :---: | :--- |
-| Carpeta aislada `chat-next` | ✅ Cumplido | Proyecto independiente creado; `chatAPI` preservado. |
-| Superación doble bloqueo de red | ✅ Cumplido | DNS Google 8.8.8.8 + VPN WireGuard puerto 443 Atlanta. |
-| Uso exclusivo de `fetch` | ✅ Cumplido | Implementado en `page.jsx` y `route.js` sin SDKs ni Axios. |
-| Tokens de sesión acumulados | ✅ Cumplido | Panel superior muestra prompt, completion y total acumulado. |
-| Métricas por respuesta | ✅ Cumplido | Cada respuesta muestra modelo, tiempo (s) y tokens/segundo. |
-| Persistencia tras `F5` | ✅ Cumplido | Almacenamiento en `localStorage` (mensajes, usage, modelo). |
-| Inferencia ultra-rápida | ✅ Cumplido | Streaming en tiempo real validado a ~470 tokens/segundo. |
-| Repositorio limpio en GitHub | ✅ Cumplido | Subida exclusiva de arquitectura pura y planes, sin `.env.local`. |
-
+| Criterio Técnico | Verificación | Estado |
+| :--- | :--- | :---: |
+| **Arquitectura Desacoplada** | Proyecto aislado en `chat-next` con su propio `package.json`. | ✅ Cumplido |
+| **Transporte Estrictamente Nativo** | Uso de `fetch` estándar en cliente y servidor; cero Axios/SDKs. | ✅ Cumplido |
+| **Streaming en Tiempo Real** | Emisión progresiva de tokens vía NDJSON a más de 450 tok/s. | ✅ Cumplido |
+| **Telemetría Completa** | Visualización de prompt tokens, completion tokens y acumulado global. | ✅ Cumplido |
+| **Métricas por Respuesta** | Medición de modelo, tiempo en segundos y tokens/segundo. | ✅ Cumplido |
+| **Persistencia en Cliente** | Restauración automática de mensajes, contadores y modelo tras `F5`. | ✅ Cumplido |
+| **Seguridad de Credenciales** | Clave resguardada en servidor; `.gitignore` y `.env.example` aplicados. | ✅ Cumplido |
