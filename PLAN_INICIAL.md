@@ -43,9 +43,11 @@ Este documento recopila el conjunto de especificaciones, requisitos funcionales 
 
 ## 2. Plan de Arquitectura e Implementación Inicial
 
-### Capa de Infraestructura y Red
-1. Superar los bloqueos regionales de internet en Venezuela mediante túnel VPN a nivel de sistema operativo (Windscribe de escritorio con protocolo WireGuard en puerto 443 hacia nodo Atlanta).
-2. Proteger la clave de API (`GROQ_API_KEY`) almacenándola exclusivamente en variables de entorno del servidor (`.env.local`) y aislándola mediante `.gitignore`.
+### Capa de Infraestructura y Red (Superación del Doble Bloqueo)
+Para habilitar el funcionamiento del software desde Venezuela, el plan contempló resolver dos barreras de red consecutivas:
+1. **Restricción 1 (Nivel DNS - Proveedor Local):** Resolver el envenenamiento/bloqueo de nombres que impedía descargar herramientas de privacidad mediante el cambio a los DNS públicos de Google (`8.8.8.8` y `8.8.4.4`).
+2. **Restricción 2 (Nivel Tránsito Troncal - CANTV y Filtrado Cloudflare):** Evadir el bloqueo de enrutamiento y geo-bloqueo IP (`HTTP 403`) mediante un túnel VPN a nivel de sistema operativo (Windscribe de escritorio con protocolo **WireGuard en el puerto 443** hacia el nodo de **Atlanta, EE. UU.**).
+3. **Seguridad de Secretos:** Proteger la clave de API (`GROQ_API_KEY`) almacenándola exclusivamente en variables de entorno del servidor (`.env.local`), proveyendo una plantilla pública (`.env.example`) y aislándola permanentemente mediante `.gitignore`.
 
 ### Capa de Servidor (Next.js Route Handler)
 * **Archivo:** `app/api/chat/route.js`
@@ -66,7 +68,7 @@ Este documento recopila el conjunto de especificaciones, requisitos funcionales 
   - **Cabecera & Dashboard:** Panel de 4 tarjetas para visualizar tokens acumulados de la sesión y selector de modelo.
   - **Historial de Chat:** Burbujas diferenciadas para usuario y asistente, con barra de telemetría (modelo, latencia, tok/s, desglose de tokens) bajo cada respuesta.
   - **Persistencia en LocalStorage:** Sincronización automática de `messages`, `sessionUsage` y `selectedModel` bajo control de montaje para evitar discrepancias de hidratación SSR.
-  - **Caja de Entrada:** Textarea elástico con envío mediante `Enter`, multilínea con `Shift + Enter` y botón de abortar respuesta.
+  - **Caja de Entrada:** Textarea elástico con envío mediante `Enter`, multilínea con `Shift + Enter` y botón de abortar respuesta (`AbortController`).
 
 ---
 
@@ -75,8 +77,11 @@ Este documento recopila el conjunto de especificaciones, requisitos funcionales 
 | Criterio | Estado | Verificación |
 | :--- | :---: | :--- |
 | Carpeta aislada `chat-next` | ✅ Cumplido | Proyecto independiente creado; `chatAPI` preservado. |
+| Superación doble bloqueo de red | ✅ Cumplido | DNS Google 8.8.8.8 + VPN WireGuard puerto 443 Atlanta. |
 | Uso exclusivo de `fetch` | ✅ Cumplido | Implementado en `page.jsx` y `route.js` sin SDKs ni Axios. |
 | Tokens de sesión acumulados | ✅ Cumplido | Panel superior muestra prompt, completion y total acumulado. |
 | Métricas por respuesta | ✅ Cumplido | Cada respuesta muestra modelo, tiempo (s) y tokens/segundo. |
-| Persistencia tras `F5` | ✅ Cumplido | Almacenamiento en `localStorage` verificado tras recargas. |
+| Persistencia tras `F5` | ✅ Cumplido | Almacenamiento en `localStorage` (mensajes, usage, modelo). |
 | Inferencia ultra-rápida | ✅ Cumplido | Streaming en tiempo real validado a ~470 tokens/segundo. |
+| Repositorio limpio en GitHub | ✅ Cumplido | Subida exclusiva de arquitectura pura y planes, sin `.env.local`. |
+
