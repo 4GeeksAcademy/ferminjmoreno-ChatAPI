@@ -113,6 +113,7 @@ Abre en tu navegador: **[http://localhost:3000](http://localhost:3000)**
 
 ## 📚 Documentación Técnica Detallada
 
-* **[PLAN_INICIAL.md](./PLAN_INICIAL.md):** Requerimientos iniciales y criterios de aceptación.
+* **[PLAN_GITHUB.md](./PLAN_GITHUB.md):** Especificaciones de arquitectura de software puro (Next.js, fetch nativo, telemetría y persistencia).
+* **[PLAN_INICIAL.md](./PLAN_INICIAL.md):** Plan inicial integral (incluyendo resolución del doble bloqueo de red local en Venezuela).
 * **[APRENDIZAJE.md](./APRENDIZAJE.md):** Bitácora técnica, retos de red superados y gestión del estado en React.
 * **[CONCLUSION.md](./CONCLUSION.md):** Síntesis de extremo a extremo y separación de capas de infraestructura vs. software.
