@@ -203,7 +203,9 @@ export default function ChatPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Error ${res.status}: Respuesta no válida`);
+        const errMessage = data.error || `Error ${res.status}: No se pudo procesar la solicitud`;
+        const errDetail = data.detail ? `\n\n*Detalle técnico:* ${data.detail}` : "";
+        throw new Error(`${errMessage}${errDetail}`);
       }
 
       const reader = res.body.getReader();
@@ -231,16 +233,15 @@ export default function ChatPage() {
                 const lastIdx = updated.length - 1;
                 updated[lastIdx] = {
                   ...updated[lastIdx],
-                  content: accumulatedText
+                  content: accumulatedText,
+                  isError: false
                 };
                 return updated;
               });
             } else if (item.type === "metrics") {
-              // Recibir métricas de Groq
               const usage = item.usage || {};
               const respModel = item.model || selectedModel;
 
-              // Actualizar mensaje con sus métricas específicas
               setMessages((prev) => {
                 const updated = [...prev];
                 const lastIdx = updated.length - 1;
@@ -258,7 +259,6 @@ export default function ChatPage() {
                 return updated;
               });
 
-              // Acumular el consumo en la sesión global
               setSessionUsage((prev) => ({
                 prompt_tokens: prev.prompt_tokens + (usage.prompt_tokens || 0),
                 completion_tokens: prev.completion_tokens + (usage.completion_tokens || 0),
@@ -277,13 +277,22 @@ export default function ChatPage() {
         console.log("Generación cancelada por el usuario");
       } else {
         console.error("Chat error:", err);
-        setErrorMessage(err.message || "Ocurrió un error inesperado.");
+        const friendlyMessage = err.message || "Ocurrió un error inesperado al conectar con el servicio de IA.";
+        setErrorMessage(friendlyMessage);
+        
+        // Transformar la respuesta del asistente en una tarjeta de error legible y elegante
         setMessages((prev) => {
-          const last = prev[prev.length - 1];
-          if (last.role === "assistant" && !last.content) {
-            return prev.slice(0, -1);
+          const updated = [...prev];
+          const lastIdx = updated.length - 1;
+          if (updated[lastIdx]?.role === "assistant") {
+            updated[lastIdx] = {
+              role: "assistant",
+              content: friendlyMessage,
+              isError: true,
+              metrics: null
+            };
           }
-          return prev;
+          return updated;
         });
       }
     } finally {
@@ -421,6 +430,8 @@ export default function ChatPage() {
                 className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-white shadow text-xs ${
                   isUser
                     ? "bg-gradient-to-tr from-blue-600 to-indigo-600"
+                    : msg.isError
+                    ? "bg-rose-600"
                     : "bg-gradient-to-tr from-orange-600 to-amber-600"
                 }`}
               >
@@ -434,9 +445,17 @@ export default function ChatPage() {
                   className={`relative group rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                     isUser
                       ? "bg-blue-600 text-white shadow-md shadow-blue-600/10"
+                      : msg.isError
+                      ? "bg-rose-950/40 border border-rose-500/30 text-rose-200 shadow-sm"
                       : "bg-slate-900/90 border border-slate-800/80 text-slate-200 shadow-sm"
                   }`}
                 >
+                  {msg.isError && (
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400 mb-1.5 border-b border-rose-500/20 pb-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Aviso del Asistente</span>
+                    </div>
+                  )}
                   <div className="whitespace-pre-wrap break-words">{msg.content}</div>
 
                   {!isUser && msg.content && (

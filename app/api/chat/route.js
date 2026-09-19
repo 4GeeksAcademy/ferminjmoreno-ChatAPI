@@ -7,7 +7,10 @@ export async function POST(req) {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "No se encontró GROQ_API_KEY configurada en el servidor (.env.local)." },
+        { 
+          error: "No se encontró la clave GROQ_API_KEY en el servidor.",
+          detail: "Configura tu clave en el archivo .env.local de la raíz del proyecto." 
+        },
         { status: 500 }
       );
     }
@@ -15,24 +18,36 @@ export async function POST(req) {
     const startTime = Date.now();
 
     // Solicitud a la API de Groq con streaming e inclusión de métricas de usage
-    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "User-Agent": "Groq-NextJS-Client"
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: messages,
-        temperature: temperature,
-        stream: true,
-        stream_options: {
-          include_usage: true
-        }
-      })
-    });
+    let groqResponse;
+    try {
+      groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "User-Agent": "Groq-NextJS-Client"
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: messages,
+          temperature: temperature,
+          stream: true,
+          stream_options: {
+            include_usage: true
+          }
+        })
+      });
+    } catch (networkErr) {
+      return NextResponse.json(
+        {
+          error: "Fallo de conectividad de red con Groq.",
+          detail: `No se pudo alcanzar el servidor: ${networkErr.message}. Verifica tu conexión a internet o VPN.`
+        },
+        { status: 503 }
+      );
+    }
 
+    // Captura controlada de errores devueltos por Groq (401, 403, 404, 429, 500)
     if (!groqResponse.ok) {
       const errorText = await groqResponse.text();
       let errorJson;
@@ -41,8 +56,28 @@ export async function POST(req) {
       } catch {
         errorJson = { error: { message: errorText } };
       }
+
+      const rawMessage = errorJson?.error?.message || errorText;
+      let friendlyMessage = rawMessage;
+
+      if (groqResponse.status === 401) {
+        friendlyMessage = "Clave de API inválida o expirada. Verifica que GROQ_API_KEY en .env.local sea correcta.";
+      } else if (groqResponse.status === 429) {
+        friendlyMessage = "Has superado el límite de consultas permitidas de Groq (Rate Limit). Espera unos segundos e intenta nuevamente.";
+      } else if (groqResponse.status === 403) {
+        friendlyMessage = "Acceso denegado por Cloudflare o región. Asegúrate de que tu VPN esté conectada a un servidor habilitado (ej. Atlanta).";
+      } else if (groqResponse.status === 404) {
+        friendlyMessage = `El modelo '${model}' no existe o tu cuenta no tiene acceso a él. Prueba seleccionando otro modelo en la cabecera.`;
+      } else if (groqResponse.status >= 500) {
+        friendlyMessage = "Los servidores de Groq están temporalmente sobrecargados. Por favor espera unos instantes.";
+      }
+
       return NextResponse.json(
-        { error: errorJson?.error?.message || "Error al conectar con Groq." },
+        { 
+          error: friendlyMessage,
+          detail: rawMessage,
+          statusCode: groqResponse.status
+        },
         { status: groqResponse.status }
       );
     }
@@ -83,7 +118,6 @@ export async function POST(req) {
                     responseModel = parsed.model;
                   }
 
-                  // Capturar usage si viene en este chunk
                   if (parsed.usage) {
                     finalUsage = parsed.usage;
                   }
@@ -94,7 +128,7 @@ export async function POST(req) {
                     controller.enqueue(encoder.encode(messagePayload));
                   }
                 } catch {
-                  // Fragmento incompleto, continuar procesando
+                  // Fragmento parcial de stream, continuar
                 }
               }
             }
@@ -109,7 +143,6 @@ export async function POST(req) {
             ? Math.round(completionTokens / finalUsage.completion_time)
             : (elapsedTimeSec > 0 ? Math.round(completionTokens / elapsedTimeSec) : 0);
 
-          // Enviar payload final con métricas completas de la respuesta
           const metricsPayload = JSON.stringify({
             type: "metrics",
             model: responseModel,
@@ -141,7 +174,10 @@ export async function POST(req) {
   } catch (err) {
     console.error("API Chat Error:", err);
     return NextResponse.json(
-      { error: err.message || "Error interno del servidor." },
+      { 
+        error: "Error interno en el servidor de chat.", 
+        detail: err.message || "Excepción no controlada." 
+      },
       { status: 500 }
     );
   }
